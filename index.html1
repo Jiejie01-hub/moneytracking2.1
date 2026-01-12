@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<!-- PWA Settings: Make it look like an app -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ffffff">
+
+<title>My Money App</title>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+body {
+font-family: 'Prompt', sans-serif;
+background-color: #e2e8f0;
+/* Prevent pull-to-refresh on mobile */
+overscroll-behavior-y: none;
+}
+
+.mobile-container {
+max-width: 480px;
+margin: 0 auto;
+background-color: #ffffff;
+min-height: 100vh;
+position: relative;
+box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+padding-bottom: 90px;
+overflow-x: hidden;
+display: flex;
+flex-direction: column;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+display: none;
+}
+.hide-scrollbar {
+-ms-overflow-style: none;
+scrollbar-width: none;
+}
+
+.glass-card {
+background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+color: white;
+}
+
+/* Modal Animation */
+.modal-base {
+transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.modal-hidden {
+opacity: 0;
+pointer-events: none;
+transform: translateY(20px);
+}
+.modal-visible {
+opacity: 1;
+pointer-events: auto;
+transform: translateY(0);
+}
+
+/* Checkbox Animation */
+.bill-checkbox {
+transition: all 0.2s ease;
+}
+.bill-checkbox:active {
+transform: scale(0.9);
+}
+.bill-item {
+transition: all 0.3s ease;
+}
+.bill-paid .bill-title {
+text-decoration: line-through;
+color: #9ca3af;
+}
+.bill-paid .bill-amount {
+color: #9ca3af;
+}
+.bill-paid .bill-icon-bg {
+background-color: #f3f4f6;
+color: #9ca3af;
+}
+
+/* Notification Animation */
+.notif-hidden {
+opacity: 0;
+transform: scale(0.95);
+pointer-events: none;
+}
+.notif-visible {
+opacity: 1;
+transform: scale(1);
+pointer-events: auto;
+}
+
+/* Page Transition */
+.page-content {
+animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(5px); }
+to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- App Container -->
+<div class="mobile-container relative">
+
+<!-- Header -->
+<header class="px-6 pt-8 pb-4 bg-white sticky top-0 z-10 flex justify-between items-center shadow-sm relative shrink-0">
+<div>
+<p class="text-gray-500 text-xs">สวัสดีตอนบ่าย 👋</p>
+<h1 class="text-xl font-bold text-gray-800" id="headerTitle">คุณออมเงิน</h1>
+</div>
+
+<!-- Bell Button -->
+<div id="bellBtn" onclick="toggleNotifications()" class="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 cursor-pointer hover:bg-gray-200 transition">
+<i class="fa-regular fa-bell text-gray-600"></i>
+<span id="notifBadge" class="absolute top-0 right-0 w-3 h-3 bg-rose-500 rounded-full border-2 border-white"></span>
+</div>
+
+<!-- Notification Dropdown Panel -->
+<div id="notificationPanel" class="absolute top-20 right-4 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-30 hidden notif-hidden transform origin-top-right transition-all duration-200">
+<div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+<h3 class="font-semibold text-gray-800 text-sm">การแจ้งเตือน</h3>
+<span class="text-xs text-blue-600 cursor-pointer hover:underline">อ่านทั้งหมด</span>
+</div>
+<div class="space-y-3">
+<div class="flex gap-3 items-start p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+<i class="fa-solid fa-circle-exclamation text-xs"></i>
+</div>
+<div>
+<p class="text-xs font-bold text-gray-800">ค่าอินเทอร์เน็ตใกล้ครบกำหนด</p>
+<p class="text-[10px] text-gray-400">พรุ่งนี้ต้องจ่าย ฿599</p>
+</div>
+</div>
+<div class="flex gap-3 items-start p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+<i class="fa-solid fa-sack-dollar text-xs"></i>
+</div>
+<div>
+<p class="text-xs font-bold text-gray-800">เงินเดือนเข้าแล้ว!</p>
+<p class="text-[10px] text-gray-400">เมื่อ 25 ม.ค. (+฿40,000)</p>
+</div>
+</div>
+<div class="flex gap-3 items-start p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+<i class="fa-solid fa-utensils text-xs"></i>
+</div>
+<div>
+<p class="text-xs font-bold text-gray-800">งบค่าอาหารใกล้หมด</p>
+<p class="text-[10px] text-gray-400">เหลือใช้อีก ฿600</p>
+</div>
+</div>
+</div>
+</div>
+</header>
+
+<!-- Main Content Area (Scrollable) -->
+<div class="flex-grow overflow-y-auto px-4 pt-4 pb-20 hide-scrollbar">
+
+<!-- PAGE 1: HOME -->
+<div id="page-home" class="page-content space-y-6">
+<!-- Main Balance Card -->
+<div class="glass-card rounded-2xl p-6 shadow-lg relative overflow-hidden text-center py-10">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-white opacity-10 rounded-full"></div>
+<div class="absolute -left-4 -bottom-4 w-20 h-20 bg-white opacity-10 rounded-full"></div>
+
+<p class="text-blue-100 text-sm mb-2">ยอดเงินคงเหลือสุทธิ</p>
+<h2 class="text-4xl font-bold" id="totalBalance">฿16,500.00</h2>
+</div>
+
+<!-- Daily Insight -->
+<div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+<div class="bg-white p-2 rounded-full text-orange-500 shadow-sm shrink-0">
+<i class="fa-regular fa-lightbulb"></i>
+</div>
+<div>
+<h3 class="text-sm font-bold text-gray-800">มุมมองการเงินวันนี้</h3>
+<p class="text-xs text-gray-600 mt-1 leading-relaxed">"การออมเงินไม่ใช่แค่การลดรายจ่าย แต่เป็นการจ่ายให้กับอนาคตของตัวคุณเอง"</p>
+</div>
+</div>
+
+<!-- Recent Transactions List -->
+<div class="bg-white rounded-t-3xl shadow-sm p-6 -mx-4 pb-24 min-h-[400px]">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-base font-semibold text-gray-800">รายการล่าสุด</h3>
+</div>
+<div class="space-y-4" id="transactionList">
+<!-- Transactions will be injected here by JS -->
+</div>
+</div>
+</div>
+
+<!-- PAGE 2: WALLET -->
+<div id="page-wallet" class="page-content space-y-6 hidden">
+<!-- Wallet Cards Container (Generated by JS) -->
+<div class="space-y-4" id="walletList">
+<!-- Cards will be injected here -->
+</div>
+
+<!-- Add Wallet Button (Moved to bottom) -->
+<button onclick="toggleModal('addWalletModal')" class="w-full py-3 border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl text-blue-600 text-sm font-medium hover:border-blue-500 hover:bg-blue-50 transition flex items-center justify-center gap-2 mt-4">
+<i class="fa-solid fa-plus"></i> เพิ่มกระเป๋าเงินใหม่
+</button>
+</div>
+
+<!-- PAGE 3: BILLS (Hidden by default) -->
+<div id="page-bills" class="page-content space-y-6 hidden">
+<!-- Bills Header -->
+<div class="bg-indigo-600 rounded-2xl p-6 text-white shadow-lg mb-6">
+<h2 class="text-2xl font-bold mb-1">จัดการบิล</h2>
+<p class="text-indigo-200 text-sm">อย่าลืมจ่ายบิลให้ตรงเวลานะครับ</p>
+<div class="mt-4 flex items-center gap-2">
+<span id="bill-unpaid-count" class="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">รอจ่าย 2 รายการ</span>
+<span id="bill-paid-summary" class="bg-emerald-500/20 px-3 py-1 rounded-full text-xs font-medium text-emerald-200">จ่ายแล้ว ฿5,000</span>
+</div>
+</div>
+
+<!-- Bill Todo List -->
+<div>
+<div class="flex justify-between items-center mb-3 px-2">
+<h3 class="text-base font-semibold text-gray-800 flex items-center gap-2">
+<i class="fa-solid fa-clipboard-list text-indigo-500"></i> รายการบิลเดือนนี้
+</h3>
+</div>
+
+<div class="space-y-3" id="billList">
+<!-- Bill 1: Internet -->
+<div class="bill-item bg-white p-4 rounded-xl shadow-sm border border-indigo-100 flex items-center justify-between group cursor-pointer" onclick="toggleBill(1)">
+<div class="flex items-center gap-3">
+<div class="bill-icon-bg w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center transition-colors">
+<i class="fa-solid fa-wifi"></i>
+</div>
+<div>
+<p class="bill-title text-sm font-medium text-gray-800">ค่าอินเทอร์เน็ต</p>
+<p class="text-xs text-rose-500 font-medium"><i class="fa-regular fa-clock"></i> ครบกำหนด 28 ม.ค.</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bill-amount text-sm font-bold text-gray-800">฿599</span>
+<div id="check-1" class="bill-checkbox text-gray-300 text-2xl hover:text-emerald-500 transition-colors">
+<i class="fa-regular fa-circle"></i>
+</div>
+</div>
+</div>
+
+<!-- Bill 2: Electricity -->
+<div class="bill-item bg-white p-4 rounded-xl shadow-sm border border-orange-100 flex items-center justify-between group cursor-pointer" onclick="toggleBill(2)">
+<div class="flex items-center gap-3">
+<div class="bill-icon-bg w-10 h-10 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center transition-colors">
+<i class="fa-solid fa-bolt"></i>
+</div>
+<div>
+<p class="bill-title text-sm font-medium text-gray-800">ค่าไฟฟ้า</p>
+<p class="text-xs text-gray-400">ครบกำหนด 30 ม.ค.</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bill-amount text-sm font-bold text-gray-800">฿1,200</span>
+<div id="check-2" class="bill-checkbox text-gray-300 text-2xl hover:text-emerald-500 transition-colors">
+<i class="fa-regular fa-circle"></i>
+</div>
+</div>
+</div>
+
+<!-- Bill 3: Rent -->
+<div class="bill-item bill-paid bg-gray-50 p-4 rounded-xl shadow-none border border-gray-100 flex items-center justify-between cursor-pointer" onclick="toggleBill(3)">
+<div class="flex items-center gap-3">
+<div class="bill-icon-bg w-10 h-10 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center transition-colors">
+<i class="fa-solid fa-house"></i>
+</div>
+<div>
+<p class="bill-title text-sm font-medium text-gray-800">ค่าเช่าห้อง</p>
+<p class="text-xs text-emerald-600 font-medium"><i class="fa-solid fa-check"></i> จ่ายแล้ว (1 ม.ค.)</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="bill-amount text-sm font-bold text-gray-800">฿5,000</span>
+<div id="check-3" class="bill-checkbox text-emerald-500 text-2xl">
+<i class="fa-solid fa-circle-check"></i>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<!-- Add Transaction Modal Overlay -->
+<div id="addModal" class="absolute inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm modal-base modal-hidden">
+<div class="bg-white w-full rounded-t-3xl p-6 pb-8 shadow-2xl transform transition-transform" onclick="event.stopPropagation()">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold text-gray-800">เพิ่มรายการใหม่</h3>
+<button onclick="toggleModal('addModal')" class="text-gray-400 hover:text-gray-600">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+
+<div class="space-y-4">
+<!-- Type Selector -->
+<div class="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
+<button id="btnExpense" onclick="setType('expense')" class="py-2 rounded-lg text-sm font-medium bg-white text-rose-600 shadow-sm transition-all">รายจ่าย</button>
+<button id="btnIncome" onclick="setType('income')" class="py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-emerald-600 transition-all">รายรับ</button>
+</div>
+
+<!-- Input Fields -->
+<div>
+<label class="text-xs text-gray-500 ml-1">ชื่อรายการ</label>
+<input type="text" id="inputTitle" placeholder="เช่น ค่าอาหารกลางวัน" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+</div>
+
+<div>
+<label class="text-xs text-gray-500 ml-1">จำนวนเงิน</label>
+<input type="number" id="inputAmount" placeholder="0.00" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors font-mono">
+</div>
+
+<!-- Wallet Selection (Dynamic) -->
+<div>
+<label class="text-xs text-gray-500 ml-1">กระเป๋าเงิน</label>
+<select id="inputWallet" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+<!-- Filled by JS -->
+</select>
+</div>
+
+<div>
+<label class="text-xs text-gray-500 ml-1">หมวดหมู่</label>
+<select id="inputCategory" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+<option value="food">อาหาร</option>
+<option value="transport">เดินทาง</option>
+<option value="shopping">ช้อปปิ้ง</option>
+<option value="bills">บิล/สาธารณูปโภค</option>
+<option value="salary">เงินเดือน</option>
+<option value="others">อื่นๆ</option>
+</select>
+</div>
+
+<button onclick="saveTransaction()" class="w-full bg-blue-600 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all mt-2">
+บันทึกรายการ
+</button>
+</div>
+</div>
+</div>
+
+<!-- NEW: Add Wallet Modal -->
+<div id="addWalletModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm modal-base modal-hidden">
+<div class="bg-white w-10/12 max-w-sm rounded-2xl p-6 shadow-2xl transform transition-transform" onclick="event.stopPropagation()">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold text-gray-800">เพิ่มกระเป๋าเงินใหม่</h3>
+<button onclick="toggleModal('addWalletModal')" class="text-gray-400 hover:text-gray-600">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+
+<div class="space-y-4">
+<div>
+<label class="text-xs text-gray-500 ml-1">ชื่อกระเป๋า</label>
+<input type="text" id="addWalletName" placeholder="เช่น เงินฝาก, กระปุกออมสิน" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+</div>
+
+<div>
+<label class="text-xs text-gray-500 ml-1">ยอดเงินเริ่มต้น</label>
+<input type="number" id="addWalletBalance" placeholder="0" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors font-mono font-bold text-lg text-gray-800">
+</div>
+
+<div>
+<label class="text-xs text-gray-500 ml-1">สีของกระเป๋า</label>
+<select id="addWalletColor" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+<option value="purple">ม่วง (SCB)</option>
+<option value="green">เขียว (KBANK)</option>
+<option value="blue">น้ำเงิน (BBL)</option>
+<option value="sky">ฟ้า (KTB)</option>
+<option value="pink">ชมพู (GSB)</option>
+<option value="orange">ส้ม</option>
+<option value="white">ขาว (เงินสด)</option>
+</select>
+</div>
+
+<div class="pt-2">
+<button onclick="saveNewWallet()" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all">
+สร้างกระเป๋าใหม่
+</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Edit Wallet Modal -->
+<div id="editWalletModal" class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm modal-base modal-hidden">
+<div class="bg-white w-10/12 max-w-sm rounded-2xl p-6 shadow-2xl transform transition-transform" onclick="event.stopPropagation()">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-bold text-gray-800">แก้ไขกระเป๋าเงิน</h3>
+<button onclick="toggleModal('editWalletModal')" class="text-gray-400 hover:text-gray-600">
+<i class="fa-solid fa-xmark text-xl"></i>
+</button>
+</div>
+
+<input type="hidden" id="editWalletId">
+
+<div class="space-y-4">
+<div>
+<label class="text-xs text-gray-500 ml-1">ชื่อกระเป๋า</label>
+<input type="text" id="editWalletName" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+</div>
+
+<div>
+<label class="text-xs text-gray-500 ml-1">ยอดเงินปัจจุบัน</label>
+<input type="number" id="editWalletBalance" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors font-mono font-bold text-lg text-gray-800">
+</div>
+
+<div>
+<label class="text-xs text-gray-500 ml-1">สีของกระเป๋า</label>
+<select id="editWalletColor" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors">
+<option value="purple">ม่วง (SCB)</option>
+<option value="green">เขียว (KBANK)</option>
+<option value="blue">น้ำเงิน (BBL)</option>
+<option value="sky">ฟ้า (KTB)</option>
+<option value="pink">ชมพู (GSB)</option>
+<option value="orange">ส้ม</option>
+<option value="white">ขาว (เงินสด)</option>
+</select>
+</div>
+
+<div class="pt-2">
+<button onclick="saveWalletChanges()" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all">
+บันทึกการเปลี่ยนแปลง
+</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-3 flex justify-between items-center text-gray-400 max-w-[480px] mx-auto z-40">
+<!-- Home Btn -->
+<button id="nav-home" onclick="switchPage('home')" class="nav-btn flex flex-col items-center gap-1 text-blue-600 transition-colors">
+<i class="fa-solid fa-house text-xl"></i>
+<span class="text-[10px] font-medium">หน้าแรก</span>
+</button>
+
+<!-- Wallet Btn -->
+<button id="nav-wallet" onclick="switchPage('wallet')" class="nav-btn flex flex-col items-center gap-1 hover:text-blue-600 transition-colors text-gray-400">
+<i class="fa-solid fa-wallet text-xl"></i>
+<span class="text-[10px] font-medium">กระเป๋า</span>
+</button>
+
+<!-- FAB Button -->
+<button onclick="toggleModal('addModal')" class="flex items-center justify-center w-12 h-12 bg-blue-600 rounded-full text-white shadow-lg -mt-8 border-4 border-white active:scale-90 transition-transform">
+<i class="fa-solid fa-plus text-xl"></i>
+</button>
+
+<!-- Bills Btn -->
+<button id="nav-bills" onclick="switchPage('bills')" class="nav-btn flex flex-col items-center gap-1 hover:text-blue-600 transition-colors text-gray-400">
+<i class="fa-solid fa-clipboard-list text-xl"></i>
+<span class="text-[10px] font-medium">บิล</span>
+</button>
+
+<button class="nav-btn flex flex-col items-center gap-1 hover:text-blue-600 transition-colors text-gray-400">
+<i class="fa-regular fa-user text-xl"></i>
+<span class="text-[10px] font-medium">โปรไฟล์</span>
+</button>
+</nav>
+
+</div>
+
+<!-- Scripts -->
+<script>
+// --- Data Models ---
+
+const colorThemes = {
+purple: { color: 'bg-gradient-to-r from-purple-600 to-purple-700', textColor: 'text-white', border: 'border-transparent' },
+green: { color: 'bg-gradient-to-r from-emerald-500 to-emerald-600', textColor: 'text-white', border: 'border-transparent' },
+blue: { color: 'bg-gradient-to-r from-blue-600 to-blue-700', textColor: 'text-white', border: 'border-transparent' },
+sky: { color: 'bg-gradient-to-r from-sky-500 to-sky-600', textColor: 'text-white', border: 'border-transparent' },
+pink: { color: 'bg-gradient-to-r from-pink-500 to-pink-600', textColor: 'text-white', border: 'border-transparent' },
+orange: { color: 'bg-gradient-to-r from-orange-500 to-orange-600', textColor: 'text-white', border: 'border-transparent' },
+white: { color: 'bg-white', textColor: 'text-gray-800', border: 'border-gray-100' }
+};
+
+// Wallets Data (Editable)
+let wallets = [
+{ id: 'cash', name: 'เงินสด', balance: 1500, type: 'cash', icon: 'fa-money-bill-wave', color: 'bg-white', textColor: 'text-gray-800', border: 'border-gray-100', colorKey: 'white' },
+{ id: 'scb', name: 'SCB', balance: 15000, type: 'bank', number: 'xxx-x-xx452-8', icon: 'fa-building-columns', color: 'bg-gradient-to-r from-purple-600 to-purple-700', textColor: 'text-white', border: 'border-transparent', colorKey: 'purple' }
+];
+
+// Transactions Data
+let transactions = [
+{ id: 1, title: "ร้าน MK Suki", amount: 1250, type: "expense", category: "food", wallet: "scb", date: "เมื่อวาน" },
+{ id: 2, title: "ปั๊ม PTT", amount: 800, type: "expense", category: "transport", wallet: "cash", date: "22 ม.ค." },
+{ id: 3, title: "เงินเดือน", amount: 40000, type: "income", category: "salary", wallet: "scb", date: "25 ม.ค." },
+{ id: 4, title: "Netflix", amount: 419, type: "expense", category: "bills", wallet: "scb", date: "20 ม.ค." }
+];
+
+let currentType = 'expense';
+
+// --- Helper Functions ---
+const formatCurrency = (num) => {
+return '฿' + num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
+const getCategoryIcon = (category) => {
+const icons = { food: 'fa-utensils', transport: 'fa-gas-pump', shopping: 'fa-bag-shopping', bills: 'fa-file-invoice', salary: 'fa-sack-dollar', others: 'fa-circle-question' };
+return icons[category] || 'fa-circle';
+};
+
+const getCategoryColor = (category) => {
+const colors = { food: 'text-orange-500 bg-orange-50', transport: 'text-blue-500 bg-blue-50', shopping: 'text-purple-500 bg-purple-50', bills: 'text-gray-500 bg-gray-50', salary: 'text-emerald-500 bg-emerald-50', others: 'text-gray-500 bg-gray-50' };
+return colors[category] || 'text-gray-500 bg-gray-50';
+}
+
+const getWalletName = (walletId) => {
+const w = wallets.find(w => w.id === walletId);
+return w ? w.name : walletId;
+}
+
+// --- Core Logic ---
+
+function calculateTotalBalance() {
+return wallets.reduce((acc, curr) => acc + curr.balance, 0);
+}
+
+function updateDashboard() {
+// Update Total Balance on Home Page
+const total = calculateTotalBalance();
+document.getElementById('totalBalance').textContent = '฿' + total.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+// Re-render transactions (in case wallet names changed)
+renderTransactions();
+
+// Re-render wallets list
+renderWallets();
+
+// Update Wallet Select Options in Add Modal
+updateWalletSelect();
+}
+
+function renderTransactions() {
+const container = document.getElementById('transactionList');
+container.innerHTML = '';
+
+transactions.sort((a, b) => b.id - a.id).forEach(t => {
+const isIncome = t.type === 'income';
+const sign = isIncome ? '+' : '-';
+const amountColor = isIncome ? 'text-emerald-600' : 'text-gray-800';
+const iconClass = getCategoryIcon(t.category);
+const colorClass = getCategoryColor(t.category);
+const walletName = getWalletName(t.wallet);
+
+const html = `
+<div class="flex items-center justify-between animate-fade-in">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full ${colorClass} flex items-center justify-center">
+<i class="fa-solid ${iconClass}"></i>
+</div>
+<div>
+<p class="text-sm font-medium text-gray-800">${t.title}</p>
+<div class="flex items-center gap-2">
+<p class="text-xs text-gray-400">${t.date}</p>
+<span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">${walletName}</span>
+</div>
+</div>
+</div>
+<span class="text-sm font-semibold ${amountColor}">${sign}${formatCurrency(t.amount)}</span>
+</div>
+`;
+container.innerHTML += html;
+});
+}
+
+function renderWallets() {
+const container = document.getElementById('walletList');
+container.innerHTML = '';
+
+wallets.forEach(w => {
+const iconColorClass = w.colorKey === 'white' ? 'bg-gray-100 text-gray-600' : 'bg-white/20 text-white backdrop-blur-sm';
+const subTextColor = w.colorKey === 'white' ? 'text-gray-400' : 'text-white/70';
+const decor = w.colorKey !== 'white' ? `<div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white opacity-10 rounded-full"></div>` : '';
+const editBtnColor = w.colorKey === 'white' ? 'text-gray-400 hover:text-blue-600' : 'text-white/70 hover:text-white';
+const displayNumber = w.type === 'bank' ? w.number : 'Cash';
+const icon = w.icon || 'fa-wallet';
+
+const html = `
+<div class="${w.color} p-5 rounded-2xl shadow-sm border ${w.border} flex justify-between items-center relative overflow-hidden transition group">
+${decor}
+<div class="flex items-center gap-4 relative z-10">
+<div class="w-12 h-12 rounded-full ${iconColorClass} flex items-center justify-center text-xl">
+<i class="fa-solid ${icon}"></i>
+</div>
+<div>
+<p class="font-bold ${w.textColor}">${w.name}</p>
+<p class="text-xs ${subTextColor}">${displayNumber}</p>
+</div>
+</div>
+<div class="flex items-center gap-3 relative z-10">
+<span class="font-bold text-lg ${w.textColor}">${formatCurrency(w.balance)}</span>
+<button onclick="openEditWalletModal('${w.id}')" class="p-2 rounded-full hover:bg-black/10 transition ${editBtnColor}">
+<i class="fa-solid fa-pen text-xs"></i>
+</button>
+</div>
+</div>
+`;
+container.innerHTML += html;
+});
+}
+
+function updateWalletSelect() {
+const select = document.getElementById('inputWallet');
+select.innerHTML = '';
+wallets.forEach(w => {
+const option = document.createElement('option');
+option.value = w.id;
+option.text = w.name;
+select.appendChild(option);
+});
+}
+
+// --- Transaction Logic ---
+function saveTransaction() {
+const title = document.getElementById('inputTitle').value;
+const amount = parseFloat(document.getElementById('inputAmount').value);
+const category = document.getElementById('inputCategory').value;
+const walletId = document.getElementById('inputWallet').value;
+
+if (!title || isNaN(amount) || amount <= 0) {
+alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+return;
+}
+
+// Find wallet to update balance
+const walletIndex = wallets.findIndex(w => w.id === walletId);
+if (walletIndex !== -1) {
+if (currentType === 'income') {
+wallets[walletIndex].balance += amount;
+} else {
+wallets[walletIndex].balance -= amount;
+}
+}
+
+// Add Transaction
+const newId = transactions.length > 0 ? Math.max(...transactions.map(t => t.id)) + 1 : 1;
+transactions.push({
+id: newId,
+title: title,
+amount: amount,
+type: currentType,
+category: category,
+wallet: walletId,
+date: "เมื่อสักครู่"
+});
+
+// Refresh UI
+updateDashboard();
+
+// Reset & Close
+document.getElementById('inputTitle').value = '';
+document.getElementById('inputAmount').value = '';
+toggleModal('addModal');
+}
+
+// --- Add Wallet Logic ---
+function saveNewWallet() {
+const name = document.getElementById('addWalletName').value;
+const balance = parseFloat(document.getElementById('addWalletBalance').value);
+const colorKey = document.getElementById('addWalletColor').value;
+
+if(!name || isNaN(balance)) {
+alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+return;
+}
+
+const theme = colorThemes[colorKey];
+const newId = 'w_' + Date.now();
+
+const newWallet = {
+id: newId,
+name: name,
+balance: balance,
+type: 'bank', // Generic type
+number: 'Wallet',
+icon: 'fa-wallet',
+color: theme.color,
+textColor: theme.textColor,
+border: theme.border,
+colorKey: colorKey
+};
+
+wallets.push(newWallet);
+updateDashboard();
+
+// Reset & Close
+document.getElementById('addWalletName').value = '';
+document.getElementById('addWalletBalance').value = '';
+toggleModal('addWalletModal');
+}
+
+// --- Wallet Edit Logic ---
+function openEditWalletModal(walletId) {
+const w = wallets.find(w => w.id === walletId);
+if (!w) return;
+
+document.getElementById('editWalletId').value = w.id;
+document.getElementById('editWalletName').value = w.name;
+document.getElementById('editWalletBalance').value = w.balance;
+
+// Set Color Select
+const colorSelect = document.getElementById('editWalletColor');
+colorSelect.value = w.colorKey || 'purple'; // default fallback
+
+toggleModal('editWalletModal');
+}
+
+function saveWalletChanges() {
+const id = document.getElementById('editWalletId').value;
+const newName = document.getElementById('editWalletName').value;
+const newBalance = parseFloat(document.getElementById('editWalletBalance').value);
+const newColorKey = document.getElementById('editWalletColor').value;
+
+if (!newName || isNaN(newBalance)) {
+alert("กรุณากรอกข้อมูลให้ถูกต้อง");
+return;
+}
+
+const walletIndex = wallets.findIndex(w => w.id === id);
+if (walletIndex !== -1) {
+wallets[walletIndex].name = newName;
+wallets[walletIndex].balance = newBalance;
+
+// Update styling based on new color key
+const theme = colorThemes[newColorKey];
+if (theme) {
+wallets[walletIndex].color = theme.color;
+wallets[walletIndex].textColor = theme.textColor;
+wallets[walletIndex].border = theme.border;
+wallets[walletIndex].colorKey = newColorKey;
+}
+
+updateDashboard();
+toggleModal('editWalletModal');
+}
+}
+
+
+// --- UI Interactions ---
+function toggleModal(modalId) {
+const modal = document.getElementById(modalId);
+if (modal.classList.contains('modal-hidden')) {
+modal.classList.remove('modal-hidden');
+modal.classList.add('modal-visible');
+} else {
+modal.classList.remove('modal-visible');
+modal.classList.add('modal-hidden');
+}
+}
+
+function setType(type) {
+currentType = type;
+const btnExpense = document.getElementById('btnExpense');
+const btnIncome = document.getElementById('btnIncome');
+
+if (type === 'expense') {
+btnExpense.className = "py-2 rounded-lg text-sm font-medium bg-white text-rose-600 shadow-sm transition-all";
+btnIncome.className = "py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-emerald-600 transition-all";
+} else {
+btnExpense.className = "py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-rose-600 transition-all";
+btnIncome.className = "py-2 rounded-lg text-sm font-medium bg-white text-emerald-600 shadow-sm transition-all";
+}
+}
+
+function switchPage(pageId) {
+// ... (Same as before)
+const pages = ['page-home', 'page-bills', 'page-wallet'];
+const navs = ['nav-home', 'nav-bills', 'nav-wallet'];
+const titles = { 'home': 'คุณออมเงิน', 'bills': 'รายการบิล', 'wallet': 'กระเป๋าของฉัน' };
+
+pages.forEach(p => document.getElementById(p).classList.add('hidden'));
+navs.forEach(n => {
+const el = document.getElementById(n);
+el.classList.remove('text-blue-600');
+el.classList.add('text-gray-400');
+});
+
+document.getElementById(`page-${pageId}`).classList.remove('hidden');
+document.getElementById(`nav-${pageId}`).classList.add('text-blue-600');
+document.getElementById(`nav-${pageId}`).classList.remove('text-gray-400');
+document.getElementById('headerTitle').textContent = titles[pageId];
+}
+
+// --- Bill Logic & Notifications (Preserved) ---
+function toggleBill(id) {
+const checkbox = document.getElementById(`check-${id}`);
+const item = checkbox.closest('.bill-item');
+const isPaid = item.classList.contains('bill-paid');
+if (isPaid) {
+item.classList.remove('bill-paid', 'bg-gray-50'); item.classList.add('bg-white');
+checkbox.className = "bill-checkbox text-gray-300 text-2xl hover:text-emerald-500 transition-colors";
+checkbox.innerHTML = '<i class="fa-regular fa-circle"></i>';
+const statusText = item.querySelector('.text-xs');
+if(id == 1) { statusText.innerHTML = '<i class="fa-regular fa-clock"></i> ครบกำหนด 28 ม.ค.'; statusText.classList.add('text-rose-500'); }
+else { statusText.innerHTML = 'ครบกำหนด 30 ม.ค.'; statusText.classList.add('text-gray-400'); }
+statusText.classList.remove('text-emerald-600');
+} else {
+item.classList.add('bill-paid', 'bg-gray-50'); item.classList.remove('bg-white');
+checkbox.className = "bill-checkbox text-emerald-500 text-2xl";
+checkbox.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+const statusText = item.querySelector('.text-xs');
+statusText.innerHTML = '<i class="fa-solid fa-check"></i> จ่ายแล้ว';
+statusText.classList.remove('text-rose-500', 'text-gray-400'); statusText.classList.add('text-emerald-600');
+}
+updateBillSummary();
+}
+
+function updateBillSummary() {
+const items = document.querySelectorAll('.bill-item');
+let paidTotal = 0; let unpaidCount = 0;
+items.forEach(item => {
+const amountText = item.querySelector('.bill-amount').innerText.replace(/[฿,]/g, '');
+const amount = parseFloat(amountText);
+if (item.classList.contains('bill-paid')) paidTotal += amount;
+else unpaidCount++;
+});
+const unpaidEl = document.getElementById('bill-unpaid-count');
+const paidEl = document.getElementById('bill-paid-summary');
+if(unpaidEl) unpaidEl.innerText = `รอจ่าย ${unpaidCount} รายการ`;
+if(paidEl) paidEl.innerText = `จ่ายแล้ว ${formatCurrency(paidTotal)}`;
+}
+
+function toggleNotifications() {
+const panel = document.getElementById('notificationPanel');
+const badge = document.getElementById('notifBadge');
+if (panel.classList.contains('hidden')) {
+panel.classList.remove('hidden');
+setTimeout(() => { panel.classList.remove('notif-hidden'); panel.classList.add('notif-visible'); }, 10);
+if(badge) badge.style.display = 'none';
+} else {
+panel.classList.remove('notif-visible'); panel.classList.add('notif-hidden');
+setTimeout(() => { panel.classList.add('hidden'); }, 200);
+}
+}
+document.addEventListener('click', function(event) {
+const panel = document.getElementById('notificationPanel');
+const bellBtn = document.getElementById('bellBtn');
+if (!panel.classList.contains('hidden') && !panel.contains(event.target) && !bellBtn.contains(event.target)) toggleNotifications();
+});
+
+
+// --- Init ---
+updateDashboard(); // This calls renderTransactions and renderWallets
+updateBillSummary();
+</script>
+</body>
+</html>
